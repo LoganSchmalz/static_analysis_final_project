@@ -24,6 +24,8 @@ println!("{}", score_team1);
 ```
 However in this case, `update_scores()` may for example change the size of the `scores` vec, causing a reallocation of the backing array, causing `score_team1` to no longer reference a valid location.
 
+Also, it should not be possible to pass in the same object multiple times to the same function if it is mutable in one of those instances. E.g. `swap(x,x)` could cause odd behavior; this also applies to `swap(a,b)` if both `a` and `b` could point to `x`.
+
 # Implementation
 
 To mirror these concepts using Python as a base, I have implemented the following features:
