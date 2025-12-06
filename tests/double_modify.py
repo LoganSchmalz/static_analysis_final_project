@@ -4,8 +4,8 @@ def modify(x):
     pass
 
 a.b.c.d = 1
-a.b.c.d = 2
-z = ref(a.b.c.d)
-a.b = 3
-a.b.c.d = 4
+z = ref(a.b)
+if x:
+    z = ref(a.b.c.d)
+modify(z)
 modify(z)

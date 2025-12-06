@@ -5,63 +5,60 @@ _alias_map = {}
 
 _base_versions = {}
 
-def get_version(var: tuple):
-    return _base_versions.get(var[:len(var)], tuple([0] * (len(var))))
+def get_full_version(var: tuple):
+    version = []
+    for i in range(len(var)):
+        parent_version = _base_versions.get(var[:i+1], 0)
+        version.append(parent_version)
+    return tuple(version)            
 
 def new_version(var: tuple):
-    parent_version = []
-    for i in range(1,len(var)):
-        next_version = _base_versions.get(var[:i], tuple([0] * i))
-        parent_version += (next_version[-1],)
-
-    # parent_version = _base_versions.get(var[:len(var)-1], [0] * (len(var)-1))
-    curr_version = _base_versions.get(var[:len(var)], parent_version + [0])
-    new_version = tuple(parent_version) + tuple([curr_version[-1] + 1])
-    _base_versions[var[:len(var)]] = tuple(new_version)
+    curr_version = _base_versions.get(var[:len(var)], 0)
+    new_version = curr_version + 1 
+    _base_versions[var[:len(var)]] = new_version
 
 def validate_version(var: list, curr_version: tuple):
     curr_version = curr_version[:len(var)-2]
-    for i in range(len(curr_version)+1):
-        parent_version = get_version(var[:i])
-        if any(c < p for c, p in zip(curr_version, parent_version)):
+    for i in range(len(curr_version)):
+        parent_version = _base_versions.get(var[:i+1], 0)
+        if curr_version[i] < parent_version:
             # a child has a version less than parent means it is not up to date and should be invalidated
             return False
     return True
 
-def get_bases(var):
+def get_bases_versions(var):
     """
     Resolve and return the set of base paths reachable from 'var' by
     following immediate alias links stored in _alias_map.
     
     This performs a transitive closure (graph reachability) and handles cycles.
-
-    _alias_map[var] = { (target_path, version_tuple), ... }
-
-    We ignore versions during reachability and follow only target_path.
     """
     # Convert plain strings into 1-tuples
     if isinstance(var, str):
         var = (var,)
 
-    frontier = {var}
+    frontier = {(var,0)}
     seen = set()
     bases = set()
 
     while frontier:
-        v = frontier.pop()
+        v, ver = frontier.pop()
         if v in seen:
             continue
         seen.add(v)
 
         if v in _alias_map:
-            # `_alias_map[v]` contains entries `(path_tuple, version_tuple)`
-            for (path, ver) in _alias_map[v]:
-                frontier.add(path)
+            for alias in _alias_map[v]:
+                frontier.add(alias)
         else:
             # No alias outgoing => v is a base path
-            bases.add(v)
+            bases.add((v,ver))
 
     return bases
+
+def get_bases(var):
+    bases_versions = get_bases_versions(var)
+    return set(b for b,v in bases_versions)
 
 def extract_ref_target(inner_expr):
     """
@@ -83,10 +80,6 @@ def extract_ref_target(inner_expr):
             raise Exception(
                 f"Invalid ref target: {inner_expr}. References must point to variables (l-values)."
             )
-
-def is_array_var(name: str):
-    return name and name[0].isupper()
-
 
 def check(stmt, is_conditional):
     match stmt:
@@ -121,7 +114,7 @@ def check(stmt, is_conditional):
                 case ["ref", inner]:
                     target = extract_ref_target(inner)
 
-                    version = get_version(target)
+                    version = get_full_version(target)
 
                     if is_conditional:
                         old = _alias_map.get(var, set())
@@ -151,7 +144,7 @@ def check(stmt, is_conditional):
         case ["setattr", ["var", base], *rest, attr, rhs]:
             var = (base, *rest, attr)
             new_version(var)
-            print(var, get_version(var))
+            print(var, get_full_version(var))
             return
 
         case ["proc", name, params, body, references, modifies]:
@@ -187,15 +180,13 @@ def check(stmt, is_conditional):
                             f"In call to {proc}: argument {a} for parameter {p} must be a reference"
                         )
                     
-                   # --- Version validation for incoming references ---
-                    for alias, version in _alias_map[varname]:
+                    # --- Version validation for incoming references ---
+                    for alias, version in get_bases_versions(varname):
                         if not validate_version(alias, version):
                             raise Exception(
                                 f"In call to {proc}: argument {a} for parameter {p} "
-                                f"is invalid because it refers to a stale version of an object: {alias}"
+                                f"is invalid because it may refer to a stale version of an object: {alias}"
                             )
-
- 
 
             # Step 2: resolve each argument to its set of base variables
             param_bases = {}
@@ -210,6 +201,9 @@ def check(stmt, is_conditional):
 
             # Step 3: check may-alias conflicts
             for i in range(len(params)):
+                p1 = params[i]
+                bases1 = param_bases[p1]
+
                 for j in range(i + 1, len(params)):
                     p1, p2 = params[i], params[j]
 
@@ -217,7 +211,6 @@ def check(stmt, is_conditional):
                         # if both are immutable, ignore
                         continue
 
-                    bases1 = param_bases[p1]
                     bases2 = param_bases[p2]
                     print("Bases", bases1, bases2)
                     if bases1 & bases2:  # non-empty intersection => may-alias
@@ -225,6 +218,19 @@ def check(stmt, is_conditional):
                             f"In call to {proc}: illegal aliasing: parameters {p1} and {p2} "
                             f"may refer to overlapping bases {bases1 & bases2} but one or both are modified."
                         )
+
+                # update versions for any modified references
+                if p1 in modifies:
+                    assert(args[i][0] == "var")
+                    varname = args[i][1]
+                    new_versions = set()
+                    # order variable tuples so any parents come before children
+                    bases = list(bases1)
+                    bases.sort(key=lambda x: len(x))
+                    for b in bases:
+                        new_version(b)
+                        new_versions.add((b, get_full_version(b)))
+                    _alias_map[(varname,)] = new_versions
             return
 
         case ["const", _] | ["var", _]:
