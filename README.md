@@ -49,7 +49,7 @@ if a.b.c.e:
     z = ref(x.y.z)  # z -> {a.b.c.d: v0.0.0.1, x.y.z: v0.0.1}
 y = ref(x)          # y -> {x: v0}
 modify(y)           # Before call: Safe because y points to most recent version of x
-                    # After call: y -> {x: v1} after call, x: v1
+                    # After call: y -> {x: v1}, x: v1
 something(z)        # Not safe, z does not point to the most recent version of x.y.z
                     # if the conditional was taken above
                     # The most recent version of x.y.z is v1.0.1
