@@ -191,8 +191,6 @@ def check(stmt, is_conditional):
             # Step 2: resolve each argument to its set of base variables
             param_bases = {}
 
-            print(params)
-            print(args)
             for p, a in zip(params, args):
                 if a[0] == 'var':
                     param_bases[p] = get_bases(a[1])
@@ -212,7 +210,6 @@ def check(stmt, is_conditional):
                         continue
 
                     bases2 = param_bases[p2]
-                    print("Bases", bases1, bases2)
                     if bases1 & bases2:  # non-empty intersection => may-alias
                         raise Exception(
                             f"In call to {proc}: illegal aliasing: parameters {p1} and {p2} "
