@@ -4,6 +4,7 @@ This project implements a toy borrow checker with the following rules:
 * A mutable borrow to a container object does not invalidate any references to its first level children.
 * A mutable borrow to a container object  invalidates any references to children beyond the first level.
 * and to be explicit: A mutable borrow to a higher-level container of a container object invalidates any references to the container
+* A function cannot be called on overlapping references if one of the corresponding parameters is marked as mutable
 
 The motivation originates from the following examples:
 ```
