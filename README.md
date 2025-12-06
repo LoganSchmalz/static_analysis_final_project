@@ -50,8 +50,10 @@ if a.b.c.e:
 y = ref(x)          # y -> {x: v0}
 modify(y)           # Before call: Safe because y points to most recent version of x
                     # After call: y -> {x: v1} after call, x: v1
-something(z)        # Not safe, z does not point to the most recent version of x.y.z if the conditional was taken above
-                    # The most recent version of x.y.z is v1.0.1 because x was updated in the modify(y) function call
+something(z)        # Not safe, z does not point to the most recent version of x.y.z
+                    # if the conditional was taken above
+                    # The most recent version of x.y.z is v1.0.1
+                    # because x was updated in the modify(y) function call
                     # however z points to v0.0.1
 ```
 
