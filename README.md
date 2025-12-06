@@ -85,10 +85,10 @@ The files demonstrate the following properties:
 This analysis has the following limitations (roughly ordered by importance):
 * The book-keeping is not sufficient for the hypothetical scenario where a function returns references right now. There are no "lifetimes" or equivalent that would be able to keep track of this.
 * Vectors are not implemented, since the syntax is slightly different from object attributes I didn't feel like messing with it, but the rules would remain the same with the following important note: an element in a vector counts as a *second*-level child element to the vector, since the vector would first contain an array and then the array contains the elements (i.e. an access is actually `vec._internal_array[b]`). This would have required some slight adjustments as a result of the syntax `vec[b]` indicating a two-level step rather than a one-level step like `a.b`.
-* Function bodies are not actually checked, since this is a relatively trivial extension by just running the full check process on each function body individually.
 * Type-checking is not implemented to save development time. Thus objects do not actually have to be well-defined, functions don't take particular types, variables can be reassigned a with a different type.
   * However, arguments passed into functions for references parameters are required to be instantiated as a reference.
   * In a practical implementation, type-checking definitely prevents some odd programs that can be constructed currently with potentially ambiguous or outright broken semantics.
+* Function bodies are not actually checked, since this is a relatively trivial extension by just running the full check process on each function body individually.
 * I didn't implement literal arithmetic expressions since e.g. `a = expr_b + expr_c` is just a slight AST difference to `a = add(expr_b, expr_c)`, and they would follow the same borrowing rules.
 
 # Practical Insights
